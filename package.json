@@ -1,0 +1,29 @@
+{
+  "name": "repo-mcp-server",
+  "version": "0.1.0",
+  "description": "MCP Server providing i18n translation management and code expert panel tools",
+  "main": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "watch": "tsx watch src/index.ts",
+    "build": "tsc --noEmit",
+    "mcp": "tsx --watch src/index.ts",
+    "minimal-mcp": "tsx --watch src/minimal-mcp.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.11.4",
+    "axios": "^1.6.0",
+    "dotenv": "^16.5.0",
+    "p-limit": "^4.0.0",
+    "zod": "^3.21.4"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.12",
+    "@types/node": "^18.0.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.3.4",
+    "tsx": "^4.7.1",
+    "typescript": "^5.0.0"
+  }
+}

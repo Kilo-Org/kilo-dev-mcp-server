@@ -60,7 +60,8 @@ Or to stop the most recent session:
    - The extension path is derived as `<workspaceDir>/src`
    - The test directory is derived as `<workspaceDir>/examples`
    - A `.PROMPT` file is written to the test directory with the prompt and session ID
-   - VSCode is launched with the extension in development mode
+   - VSCode is launched with the extension in development mode using the `--wait` flag
+   - The `--wait` flag ensures the process stays alive until the window is closed
    - The extension can read the `.PROMPT` file and execute the prompt
    - The tool call blocks and waits for the extension to complete
    - Session information is stored persistently to allow access from different processes
@@ -83,6 +84,16 @@ Or to stop the most recent session:
 - `types.ts`: Type definitions for the tools
 - `launchDevExtension.ts`: Implementation of the launch tool
 - `stopDevExtension.ts`: Implementation of the stop tool
+
+## Process Management
+
+The tools use several techniques to ensure reliable process management:
+
+1. **Using the `--wait` flag**: When launching VS Code, we use the `--wait` flag which keeps the process alive until the window is closed. This ensures that the process we get from `spawn()` is the actual VS Code window process, not just a short-lived CLI wrapper.
+
+2. **Two-step termination**: When stopping a process, we first try SIGTERM for graceful shutdown, then fall back to SIGKILL if the process doesn't terminate within a timeout period.
+
+3. **Cross-process termination**: Sessions store the PID of the VS Code process, allowing any process to terminate the VS Code window, even if it wasn't the one that launched it.
 
 ## Security Considerations
 

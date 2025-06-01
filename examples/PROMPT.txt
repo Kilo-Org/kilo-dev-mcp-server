@@ -1,0 +1,18 @@
+Write a "poem" markdown file into this dir
+
+---
+
+IMPORTANT: WHEN YOU HAVE COMPLETED THE TASK ABOVE, YOU MUST EXPLICITLY CALL THE FOLLOWING MCP TOOL:
+
+use_mcp_tool(
+  server_name: "kilo-dev-mcp-server",
+  tool_name: "stop_dev_extension",
+  arguments: {
+    "sessionId": "test-59d1sv3r"
+  }
+)
+
+Session ID: test-59d1sv3r
+
+This will signal that you have finished the task and allow the system to continue.
+DO NOT FORGET to call this tool when you are done. The system will remain blocked until you do.

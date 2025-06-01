@@ -94,6 +94,43 @@ export class ExtensionManager {
   }
 
   /**
+   * Kill a process by its PID
+   * This is a more direct approach than using the process object
+   * @param pid Process ID to kill
+   */
+  private killProcessByPid(pid: number): void {
+    try {
+      // First try SIGTERM for graceful shutdown
+      process.stderr.write(
+        `[ExtensionManager] Sending SIGTERM to process ${pid}\n`
+      );
+      process.kill(pid, "SIGTERM");
+
+      // Give it a moment to terminate gracefully
+      setTimeout(() => {
+        // Check if process is still running
+        if (SessionStorage.isProcessRunning(pid)) {
+          process.stderr.write(
+            `[ExtensionManager] Process ${pid} did not terminate gracefully, using SIGKILL\n`
+          );
+
+          // Force kill
+          process.kill(pid, "SIGKILL");
+        } else {
+          process.stderr.write(
+            `[ExtensionManager] Process ${pid} terminated successfully with SIGTERM\n`
+          );
+        }
+      }, 2000);
+    } catch (error) {
+      process.stderr.write(
+        `[ExtensionManager] Error killing process ${pid}: ${error}\n`
+      );
+      // Process might already be gone, which is fine
+    }
+  }
+
+  /**
    * Get the singleton instance
    */
   public static getInstance(): ExtensionManager {
@@ -190,6 +227,7 @@ DO NOT FORGET to call this tool when you are done. The system will remain blocke
     const vscodeProcess = spawn("code", [
       `--extensionDevelopmentPath=${extensionPath}`,
       "--disable-extensions",
+      "--wait", // Keep the process alive until the window is closed
       dir,
     ]);
     process.stderr.write(
@@ -272,25 +310,49 @@ DO NOT FORGET to call this tool when you are done. The system will remain blocke
     // Kill the process
     let exitCode: number | null = null;
     try {
-      // Try graceful termination first
-      session.process.kill("SIGTERM");
+      // With the --wait flag, the process object should be the actual VS Code window
+      // So we can kill it directly
+      process.stderr.write(
+        `[Extension ${session.sessionId}] Attempting to kill VS Code window\n`
+      );
 
-      // Wait for process to exit (max 5 seconds)
-      await new Promise<void>((resolve) => {
-        const timeout = setTimeout(() => {
-          // Force kill if it doesn't exit
-          if (session.process.killed === false) {
-            session.process.kill("SIGKILL");
-          }
-          resolve();
-        }, 5000);
+      if (session.process && !session.process.killed) {
+        // Try graceful termination first
+        process.stderr.write(
+          `[Extension ${session.sessionId}] Sending SIGTERM to process\n`
+        );
+        session.process.kill("SIGTERM");
 
-        session.process.once("exit", (code) => {
-          exitCode = code;
-          clearTimeout(timeout);
-          resolve();
+        // Wait for process to exit (max 5 seconds)
+        await new Promise<void>((resolve) => {
+          const timeout = setTimeout(() => {
+            // Force kill if it doesn't exit
+            if (session.process.killed === false) {
+              process.stderr.write(
+                `[Extension ${session.sessionId}] Process did not terminate gracefully, using SIGKILL\n`
+              );
+              session.process.kill("SIGKILL");
+            }
+            resolve();
+          }, 5000);
+
+          session.process.once("exit", (code) => {
+            exitCode = code;
+            process.stderr.write(
+              `[Extension ${session.sessionId}] Process exited with code ${code}\n`
+            );
+            clearTimeout(timeout);
+            resolve();
+          });
         });
-      });
+      } else if (session.pid) {
+        // Fallback to PID-based killing if process object is not available or already killed
+        // This is useful for cross-process scenarios
+        process.stderr.write(
+          `[Extension ${session.sessionId}] Process object unavailable, attempting to kill by PID: ${session.pid}\n`
+        );
+        this.killProcessByPid(session.pid);
+      }
     } catch (error) {
       process.stderr.write(
         `[Extension ${session.sessionId}] Error stopping process: ${error}\n`
@@ -398,7 +460,20 @@ DO NOT FORGET to call this tool when you are done. The system will remain blocke
     const sessions = this.getAllSessions();
     for (const session of sessions) {
       try {
-        session.process.kill("SIGKILL");
+        // With --wait flag, the process object should be the actual VS Code window
+        if (session.process && !session.process.killed) {
+          process.stderr.write(
+            `[Extension ${session.sessionId}] Killing process during cleanup\n`
+          );
+          session.process.kill("SIGKILL");
+        } else if (session.pid) {
+          // Fallback to PID-based killing
+          process.stderr.write(
+            `[Extension ${session.sessionId}] Killing by PID during cleanup: ${session.pid}\n`
+          );
+          this.killProcessByPid(session.pid);
+        }
+
         // No longer cleaning up prompt file
         process.stderr.write(
           `[Extension ${session.sessionId}] Skipping prompt file cleanup during cleanupAllSessions\n`

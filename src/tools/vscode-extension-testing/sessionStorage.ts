@@ -21,6 +21,10 @@ const SESSION_STORAGE_FILE = path.join(
   SESSION_STORAGE_DIR,
   "vscode-extension-sessions.json"
 );
+const COMPLETION_SIGNAL_DIR = path.join(
+  SESSION_STORAGE_DIR,
+  "completion-signals"
+);
 
 /**
  * Ensures the session storage directory exists
@@ -28,6 +32,11 @@ const SESSION_STORAGE_FILE = path.join(
 function ensureStorageDirectoryExists(): void {
   if (!fs.existsSync(SESSION_STORAGE_DIR)) {
     fs.mkdirSync(SESSION_STORAGE_DIR, { recursive: true });
+  }
+
+  // Create completion signals directory
+  if (!fs.existsSync(COMPLETION_SIGNAL_DIR)) {
+    fs.mkdirSync(COMPLETION_SIGNAL_DIR, { recursive: true });
   }
 }
 
@@ -235,6 +244,58 @@ export class SessionStorage {
 
     if (hasChanges) {
       SessionStorage.saveSessions(sessions);
+    }
+  }
+
+  /**
+   * Signal that a session has completed
+   * This creates a file that can be watched by other processes
+   * @param sessionId ID of the completed session
+   * @param result Result of the session
+   */
+  public static signalSessionCompletion(
+    sessionId: string,
+    result: StopResult
+  ): void {
+    ensureStorageDirectoryExists();
+
+    const signalFile = path.join(COMPLETION_SIGNAL_DIR, `${sessionId}.json`);
+    fs.writeFileSync(signalFile, JSON.stringify(result, null, 2));
+  }
+
+  /**
+   * Check if a session has a completion signal
+   * @param sessionId ID of the session to check
+   * @returns The result if a signal exists, undefined otherwise
+   */
+  public static checkCompletionSignal(
+    sessionId: string
+  ): StopResult | undefined {
+    const signalFile = path.join(COMPLETION_SIGNAL_DIR, `${sessionId}.json`);
+
+    if (!fs.existsSync(signalFile)) {
+      return undefined;
+    }
+
+    try {
+      const content = fs.readFileSync(signalFile, "utf-8");
+      const result = JSON.parse(content) as StopResult;
+      return result;
+    } catch (error) {
+      console.error(`Error reading completion signal: ${error}`);
+      return undefined;
+    }
+  }
+
+  /**
+   * Remove a completion signal
+   * @param sessionId ID of the session
+   */
+  public static removeCompletionSignal(sessionId: string): void {
+    const signalFile = path.join(COMPLETION_SIGNAL_DIR, `${sessionId}.json`);
+
+    if (fs.existsSync(signalFile)) {
+      fs.unlinkSync(signalFile);
     }
   }
 }

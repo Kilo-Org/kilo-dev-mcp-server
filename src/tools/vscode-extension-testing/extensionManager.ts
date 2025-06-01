@@ -30,6 +30,67 @@ export class ExtensionManager {
 
     // Clean up any stale sessions
     SessionStorage.cleanupStaleSessions();
+
+    // Start polling for completion signals
+    this.startCompletionSignalPolling();
+  }
+
+  /**
+   * Start polling for completion signals from other processes
+   * This allows promises to resolve even if the stop command is issued from a different process
+   */
+  private startCompletionSignalPolling(): void {
+    // Check for completion signals every 500ms
+    const pollInterval = 500;
+
+    const checkCompletionSignals = () => {
+      // Get all sessions that have callbacks waiting
+      const waitingSessions = Array.from(
+        this.sessionCompletionCallbacks.keys()
+      );
+
+      for (const sessionId of waitingSessions) {
+        // Check if there's a completion signal for this session
+        const result = SessionStorage.checkCompletionSignal(sessionId);
+
+        if (result) {
+          process.stderr.write(
+            `[ExtensionManager] Found completion signal for session: ${sessionId}\n`
+          );
+
+          // Get the callback
+          const callback = this.sessionCompletionCallbacks.get(sessionId);
+
+          if (callback) {
+            process.stderr.write(
+              `[ExtensionManager] Calling callback for session: ${sessionId}\n`
+            );
+
+            // Call the callback with the result
+            callback(result);
+
+            // Remove the callback from the map
+            this.sessionCompletionCallbacks.delete(sessionId);
+
+            // Remove the completion signal
+            SessionStorage.removeCompletionSignal(sessionId);
+
+            // Remove the session from memory
+            this.sessions.delete(sessionId);
+            if (this.currentSessionId === sessionId) {
+              this.currentSessionId = null;
+              SessionStorage.saveCurrentSessionId(null);
+            }
+          }
+        }
+      }
+
+      // Schedule the next check
+      setTimeout(checkCompletionSignals, pollInterval);
+    };
+
+    // Start the polling
+    setTimeout(checkCompletionSignals, pollInterval);
   }
 
   /**
@@ -271,8 +332,11 @@ DO NOT FORGET to call this tool when you are done. The system will remain blocke
       );
     } else {
       process.stderr.write(
-        `[Extension ${session.sessionId}] No waiting callback found to signal completion\n`
+        `[Extension ${session.sessionId}] No waiting callback found in this process, creating completion signal\n`
       );
+
+      // Create a completion signal for other processes
+      SessionStorage.signalSessionCompletion(session.sessionId, result);
     }
 
     // Remove session from memory
@@ -377,6 +441,28 @@ DO NOT FORGET to call this tool when you are done. The system will remain blocke
         return;
       }
 
+      // Check if there's already a completion signal for this session
+      const existingResult = SessionStorage.checkCompletionSignal(sessionId);
+      if (existingResult) {
+        process.stderr.write(
+          `[ExtensionManager] Found existing completion signal for session: ${sessionId}\n`
+        );
+
+        // Remove the completion signal
+        SessionStorage.removeCompletionSignal(sessionId);
+
+        // Remove the session from memory
+        this.sessions.delete(sessionId);
+        if (this.currentSessionId === sessionId) {
+          this.currentSessionId = null;
+          SessionStorage.saveCurrentSessionId(null);
+        }
+
+        // Resolve the promise immediately
+        resolve(existingResult);
+        return;
+      }
+
       process.stderr.write(
         `[ExtensionManager] Creating Promise for session: ${sessionId}\n`
       );
@@ -455,6 +541,9 @@ DO NOT FORGET to call this tool when you are done. The system will remain blocke
       process.stderr.write(
         `[Extension ${sessionId}] Completion callback called and removed from map\n`
       );
+
+      // Also create a completion signal for other processes
+      SessionStorage.signalSessionCompletion(sessionId, result);
 
       // Clean up session from memory
       this.sessions.delete(sessionId);

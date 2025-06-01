@@ -5,6 +5,7 @@
 
 import launchDevExtensionTool from "./launchDevExtension.js";
 import stopDevExtensionTool from "./stopDevExtension.js";
+import writePromptFileTool from "./writePromptFile.js";
 import { ToolHandler } from "../types.js";
 
 /**
@@ -13,9 +14,10 @@ import { ToolHandler } from "../types.js";
 export const vscodeExtensionTestingTools: ToolHandler[] = [
   launchDevExtensionTool,
   stopDevExtensionTool,
+  writePromptFileTool, // Add the new tool
 ];
 
 /**
  * Export individual tools
  */
-export { launchDevExtensionTool, stopDevExtensionTool };
+export { launchDevExtensionTool, stopDevExtensionTool, writePromptFileTool };

@@ -33,9 +33,19 @@ Launches a VSCode extension in development mode with a test prompt.
 Stops the currently running VSCode extension test and unblocks the waiting `launch_dev_extension` call.
 
 **Parameters:**
-None required - stops the most recently launched extension test.
+- `sessionId` (string, optional): ID of the session to stop. If not provided, stops the most recently launched extension test.
 
 **Example:**
+```json
+{
+  "tool": "stop_dev_extension",
+  "arguments": {
+    "sessionId": "test-a1b2c3d4"
+  }
+}
+```
+
+Or to stop the most recent session:
 ```json
 {
   "tool": "stop_dev_extension",
@@ -53,6 +63,7 @@ None required - stops the most recently launched extension test.
    - VSCode is launched with the extension in development mode
    - The extension can read the `.PROMPT` file and execute the prompt
    - The tool call blocks and waits for the extension to complete
+   - Session information is stored persistently to allow access from different processes
 
 2. When the extension completes its work:
    - It (or another client) calls `stop_dev_extension`
@@ -60,9 +71,15 @@ None required - stops the most recently launched extension test.
    - The `.PROMPT` file is cleaned up
    - Results are returned to both the `stop_dev_extension` caller and the waiting `launch_dev_extension` caller
 
+3. Cross-process session management:
+   - Session information is stored in a file in the system's temporary directory
+   - This allows sessions to be managed across different processes
+   - You can launch an extension in one process and stop it from another
+
 ## Implementation Details
 
 - `extensionManager.ts`: Singleton class that manages the lifecycle of extension test processes
+- `sessionStorage.ts`: Handles persistent storage of session information across processes
 - `types.ts`: Type definitions for the tools
 - `launchDevExtension.ts`: Implementation of the launch tool
 - `stopDevExtension.ts`: Implementation of the stop tool
@@ -72,3 +89,18 @@ None required - stops the most recently launched extension test.
 - All file paths are validated to prevent directory traversal
 - Process management includes proper cleanup to prevent resource leaks
 - Prompt content is sanitized before writing to disk
+- Session data is stored securely in the system's temporary directory
+
+## Testing Cross-Process Functionality
+
+A test script is provided to demonstrate the cross-process functionality:
+
+```bash
+# Launch an extension in one process
+node examples/test-vscode-extension-persistence.js launch /path/to/extension "Your test prompt"
+
+# Stop the extension from another process using the session ID
+node examples/test-vscode-extension-persistence.js stop test-a1b2c3d4
+```
+
+This allows you to verify that sessions can be managed across different processes.

@@ -7,9 +7,11 @@ import { ChildProcess, spawn } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import { ExtensionProcess, PromptFile, StopResult } from "./types.js";
+import { SessionStorage } from "./sessionStorage.js";
 
 /**
  * Singleton class to manage VSCode extension test processes
+ * Uses persistent storage to track sessions across different processes
  */
 export class ExtensionManager {
   private static instance: ExtensionManager;
@@ -21,8 +23,13 @@ export class ExtensionManager {
    * Private constructor to enforce singleton pattern
    */
   private constructor() {
-    this.sessions = new Map();
+    // Load sessions from persistent storage
+    this.sessions = SessionStorage.loadSessions();
+    this.currentSessionId = SessionStorage.loadCurrentSessionId();
     this.sessionCompletionCallbacks = new Map();
+
+    // Clean up any stale sessions
+    SessionStorage.cleanupStaleSessions();
   }
 
   /**
@@ -54,35 +61,79 @@ export class ExtensionManager {
     prompt: string,
     dir: string
   ): Promise<string> {
+    process.stderr.write(
+      `[ExtensionManager] launchExtension called with path: ${extensionPath}, dir: ${dir}\n`
+    );
+
     // Validate inputs
     if (!fs.existsSync(extensionPath)) {
+      process.stderr.write(
+        `[ExtensionManager] Extension path does not exist: ${extensionPath}\n`
+      );
       throw new Error(`Extension path does not exist: ${extensionPath}`);
     }
 
     // Create directory if it doesn't exist
     if (!fs.existsSync(dir)) {
+      process.stderr.write(`[ExtensionManager] Creating directory: ${dir}\n`);
       fs.mkdirSync(dir, { recursive: true });
     }
 
     // Generate a unique session ID
     const sessionId = this.generateSessionId();
     const startTime = new Date();
+    process.stderr.write(
+      `[ExtensionManager] Generated session ID: ${sessionId}\n`
+    );
 
     // Create prompt file with plain text instructions
     const promptFilePath = path.join(dir, ".PROMPT");
-    console.log(promptFilePath);
+    process.stderr.write(
+      `[ExtensionManager] Writing prompt file to: ${promptFilePath}\n`
+    );
 
     // Write the user's prompt and add instructions for stopping the extension
-    const promptContent = `${prompt}\n\n---\n\nSession ID: ${sessionId}\n\nTo stop this extension test, use the stop_dev_extension tool.`;
+    const promptContent = `${prompt}
+
+---
+
+IMPORTANT: WHEN YOU HAVE COMPLETED THE TASK ABOVE, YOU MUST EXPLICITLY CALL THE FOLLOWING MCP TOOL:
+
+use_mcp_tool(
+  server_name: "kilo-dev-mcp-server",
+  tool_name: "stop_dev_extension",
+  arguments: {
+    "sessionId": "${sessionId}"
+  }
+)
+
+Session ID: ${sessionId}
+
+This will signal that you have finished the task and allow the system to continue.
+DO NOT FORGET to call this tool when you are done. The system will remain blocked until you do.`;
 
     fs.writeFileSync(promptFilePath, promptContent);
+    process.stderr.write(
+      `[ExtensionManager] Prompt file written successfully\n`
+    );
+
+    // Also write a visible copy for debugging
+    const visiblePromptFilePath = path.join(dir, "PROMPT.txt");
+    fs.writeFileSync(visiblePromptFilePath, promptContent);
+    process.stderr.write(
+      `[ExtensionManager] Also wrote visible copy to: ${visiblePromptFilePath}\n`
+    );
 
     // Launch VSCode process
+    process.stderr.write(`[ExtensionManager] Spawning VSCode process\n`);
     const vscodeProcess = spawn("code", [
       `--extensionDevelopmentPath=${extensionPath}`,
       "--disable-extensions",
       dir,
     ]);
+    process.stderr.write(
+      `[ExtensionManager] VSCode process spawned with PID: ${vscodeProcess.pid}\n`
+    );
 
     // Create session object
     const session: ExtensionProcess = {
@@ -116,13 +167,21 @@ export class ExtensionManager {
         `[Extension ${sessionId}] Process exited with code ${code}\n`
       );
 
+      process.stderr.write(
+        `[Extension ${sessionId}] Process exit event triggered, calling handleExternalProcessTermination\n`
+      );
+
       // Handle case when process is killed externally
       this.handleExternalProcessTermination(sessionId, code);
     });
 
-    // Store session
+    // Store session in memory
     this.sessions.set(sessionId, session);
     this.currentSessionId = sessionId;
+
+    // Persist to storage
+    SessionStorage.updateSession(session);
+    SessionStorage.saveCurrentSessionId(sessionId);
 
     return sessionId;
   }
@@ -177,17 +236,10 @@ export class ExtensionManager {
       );
     }
 
-    // Clean up prompt file
-    try {
-      const promptFilePath = path.join(session.testDir, ".PROMPT");
-      if (fs.existsSync(promptFilePath)) {
-        fs.unlinkSync(promptFilePath);
-      }
-    } catch (error) {
-      process.stderr.write(
-        `[Extension ${session.sessionId}] Error cleaning up prompt file: ${error}\n`
-      );
-    }
+    // No longer cleaning up prompt file
+    process.stderr.write(
+      `[Extension ${session.sessionId}] Skipping prompt file cleanup as requested\n`
+    );
 
     // Create result object
     const result: StopResult = {
@@ -204,15 +256,33 @@ export class ExtensionManager {
       process.stderr.write(
         `[Extension ${session.sessionId}] Signaling completion to waiting callback\n`
       );
+      process.stderr.write(
+        `[Extension ${session.sessionId}] About to resolve Promise in stopCurrentSession\n`
+      );
+
+      // Call the callback with the result to resolve the Promise
       callback(result);
+
+      // Remove the callback from the map
       this.sessionCompletionCallbacks.delete(session.sessionId);
+
+      process.stderr.write(
+        `[Extension ${session.sessionId}] Promise resolved and callback removed from map\n`
+      );
+    } else {
+      process.stderr.write(
+        `[Extension ${session.sessionId}] No waiting callback found to signal completion\n`
+      );
     }
 
-    // Remove session from map
+    // Remove session from memory
     this.sessions.delete(session.sessionId);
     if (this.currentSessionId === session.sessionId) {
       this.currentSessionId = null;
     }
+
+    // Remove from persistent storage
+    SessionStorage.removeSession(session.sessionId);
 
     // Return results
     return result;
@@ -265,18 +335,23 @@ export class ExtensionManager {
     for (const session of sessions) {
       try {
         session.process.kill("SIGKILL");
-        const promptFilePath = path.join(session.testDir, ".PROMPT");
-        if (fs.existsSync(promptFilePath)) {
-          fs.unlinkSync(promptFilePath);
-        }
+        // No longer cleaning up prompt file
+        process.stderr.write(
+          `[Extension ${session.sessionId}] Skipping prompt file cleanup during cleanupAllSessions\n`
+        );
       } catch (error) {
         process.stderr.write(
           `[Extension ${session.sessionId}] Error during cleanup: ${error}\n`
         );
       }
     }
+    // Clear from memory
     this.sessions.clear();
     this.currentSessionId = null;
+
+    // Clear from persistent storage
+    SessionStorage.saveSessions(new Map());
+    SessionStorage.saveCurrentSessionId(null);
   }
 
   /**
@@ -285,17 +360,41 @@ export class ExtensionManager {
    * @returns Promise that resolves when the session completes
    */
   public waitForSessionCompletion(sessionId: string): Promise<StopResult> {
-    return new Promise<StopResult>((resolve) => {
+    process.stderr.write(
+      `[ExtensionManager] waitForSessionCompletion called for session: ${sessionId}\n`
+    );
+
+    return new Promise<StopResult>(async (resolve, reject) => {
+      await new Promise((r) => setTimeout(r, 3000));
+
       // Check if session exists
       if (!this.sessions.has(sessionId)) {
-        throw new Error(`Session not found: ${sessionId}`);
+        process.stderr.write(
+          `[ExtensionManager] Session not found: ${sessionId}\n`
+        );
+        // Properly reject the promise instead of throwing
+        reject(new Error(`Session not found: ${sessionId}`));
+        return;
       }
 
+      process.stderr.write(
+        `[ExtensionManager] Creating Promise for session: ${sessionId}\n`
+      );
+
       // Store callback to be called when session completes
-      this.sessionCompletionCallbacks.set(sessionId, resolve);
+      this.sessionCompletionCallbacks.set(sessionId, (result) => {
+        process.stderr.write(
+          `[ExtensionManager] Resolving Promise for session: ${sessionId}\n`
+        );
+        resolve(result);
+      });
 
       process.stderr.write(
-        `[ExtensionManager] Waiting for session ${sessionId} to complete\n`
+        `[ExtensionManager] Promise created and callback stored for session ${sessionId}\n`
+      );
+
+      process.stderr.write(
+        `[ExtensionManager] Waiting for session ${sessionId} to complete. This Promise will not resolve until stopDevExtension is called.\n`
       );
     });
   }
@@ -310,9 +409,17 @@ export class ExtensionManager {
     sessionId: string,
     exitCode: number | null
   ): void {
+    process.stderr.write(
+      `[ExtensionManager] handleExternalProcessTermination called for session: ${sessionId} with exit code: ${exitCode}\n`
+    );
+
     // Check if session exists and has a completion callback
     const session = this.sessions.get(sessionId);
     const callback = this.sessionCompletionCallbacks.get(sessionId);
+
+    process.stderr.write(
+      `[ExtensionManager] Session exists: ${!!session}, Callback exists: ${!!callback}\n`
+    );
 
     if (session && callback) {
       process.stderr.write(
@@ -322,6 +429,9 @@ export class ExtensionManager {
       // Calculate duration
       const endTime = new Date();
       const duration = endTime.getTime() - session.startTime.getTime();
+      process.stderr.write(
+        `[Extension ${sessionId}] Session duration: ${duration}ms\n`
+      );
 
       // Create result object
       const result: StopResult = {
@@ -332,27 +442,33 @@ export class ExtensionManager {
         errors: session.errors,
       };
 
+      process.stderr.write(
+        `[Extension ${sessionId}] About to call completion callback\n`
+      );
+
       // Signal completion to waiting callback
       callback(result);
+
+      // Remove the callback from the map
       this.sessionCompletionCallbacks.delete(sessionId);
 
-      // Clean up session
+      process.stderr.write(
+        `[Extension ${sessionId}] Completion callback called and removed from map\n`
+      );
+
+      // Clean up session from memory
       this.sessions.delete(sessionId);
       if (this.currentSessionId === sessionId) {
         this.currentSessionId = null;
       }
 
-      // Clean up prompt file
-      try {
-        const promptFilePath = path.join(session.testDir, ".PROMPT");
-        if (fs.existsSync(promptFilePath)) {
-          fs.unlinkSync(promptFilePath);
-        }
-      } catch (error) {
-        process.stderr.write(
-          `[Extension ${sessionId}] Error cleaning up prompt file after external termination: ${error}\n`
-        );
-      }
+      // Clean up from persistent storage
+      SessionStorage.removeSession(sessionId);
+
+      // No longer cleaning up prompt file
+      process.stderr.write(
+        `[Extension ${sessionId}] Skipping prompt file cleanup after external termination as requested\n`
+      );
     }
   }
 }

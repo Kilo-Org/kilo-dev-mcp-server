@@ -64,7 +64,7 @@ if (!OPENROUTER_API_KEY || OPENROUTER_API_KEY.trim() === "") {
 }
 
 // Determine the project root path (more reliable approach)
-const PROJECT_ROOT = process.cwd().includes("repo-mcp-server")
+const PROJECT_ROOT = process.cwd().includes("kilo-dev-mcp-server")
   ? path.resolve(process.cwd(), "..")
   : process.cwd();
 
@@ -99,7 +99,7 @@ class McpStdioHandler {
 
     this.server = new Server(
       {
-        name: "repo-mcp-server",
+        name: "kilo-dev-mcp-server",
         version: "0.1.0",
       },
       {
@@ -152,7 +152,28 @@ class McpStdioHandler {
         const tool = getToolByName(name);
         if (tool) {
           process.stderr.write(`[MCP] Executing tool: ${name}\n`);
-          const result = await tool.execute(args, context);
+
+          // Special logging for launch_dev_extension
+          if (name === "launch_dev_extension") {
+            process.stderr.write(
+              `[MCP] Starting launch_dev_extension execution at ${new Date().toISOString()}\n`
+            );
+          }
+
+          const resultPromise = tool.execute(args, context);
+
+          // Log that we're awaiting the promise
+          process.stderr.write(`[MCP] Awaiting Promise from tool: ${name}\n`);
+
+          const result = await resultPromise;
+
+          // Special logging for launch_dev_extension
+          if (name === "launch_dev_extension") {
+            process.stderr.write(
+              `[MCP] Completed launch_dev_extension execution at ${new Date().toISOString()}\n`
+            );
+          }
+
           process.stderr.write(`[MCP] Tool execution completed: ${name}\n`);
           return result;
         } else {

@@ -146,7 +146,7 @@ async function checkToolRegistration() {
 	console.log(`${colors.blue}[3/4]${colors.reset} Checking if query_expert_panel tool is registered...`)
 
 	try {
-		const client = new McpClient("stdio://repo-mcp-server")
+		const client = new McpClient("stdio://kilo-dev-mcp-server")
 		await client.connect()
 
 		// Get the list of available tools
@@ -178,7 +178,7 @@ async function testTool() {
 	console.log(`${colors.yellow}ℹ️  This may take a minute as it queries multiple LLM models...${colors.reset}`)
 
 	try {
-		const client = new McpClient("stdio://repo-mcp-server")
+		const client = new McpClient("stdio://kilo-dev-mcp-server")
 		await client.connect()
 
 		// Call the tool with minimal parameters

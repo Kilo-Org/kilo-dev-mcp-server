@@ -1,5 +1,5 @@
 {
-  "name": "repo-mcp-server",
+  "name": "kilo-dev-mcp-server",
   "version": "0.1.0",
   "description": "MCP Server providing i18n translation management and code expert panel tools",
   "main": "src/index.ts",

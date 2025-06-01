@@ -98,6 +98,13 @@ class LaunchDevExtensionTool implements ToolHandler {
       const manager = ExtensionManager.getInstance();
 
       // Launch extension
+      process.stderr.write(
+        `[LaunchDevExtension] About to launch extension at path: ${resolvedExtensionPath}\n`
+      );
+      process.stderr.write(
+        `[LaunchDevExtension] Using prompt directory: ${resolvedDir}\n`
+      );
+
       const sessionId = await manager.launchExtension(
         resolvedExtensionPath,
         prompt,
@@ -111,7 +118,17 @@ class LaunchDevExtensionTool implements ToolHandler {
       // Wait for the extension process to complete
       try {
         // This will block until stopDevExtension is called or the process exits
+        process.stderr.write(
+          `[LaunchDevExtension] Calling waitForSessionCompletion for session: ${sessionId}\n`
+        );
+
+        // This Promise will not resolve until stopDevExtension is explicitly called
+        // or the process exits unexpectedly
         const result = await manager.waitForSessionCompletion(sessionId);
+
+        process.stderr.write(
+          `[LaunchDevExtension] waitForSessionCompletion resolved for session: ${sessionId}\n`
+        );
 
         // Format duration as seconds with 2 decimal places
         const durationSeconds = (result.duration / 1000).toFixed(2);

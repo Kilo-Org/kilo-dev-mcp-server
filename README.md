@@ -15,7 +15,7 @@ It follows the MCP protocol to interact with the extension via stdio (standard i
 The codebase is organized as follows:
 
 ```
-repo-mcp-server/
+kilo-dev-mcp-server/
 ├── src/
 │   ├── index.ts              # Main entry point, starts the MCP server
 │   ├── tools/                # MCP tools directory

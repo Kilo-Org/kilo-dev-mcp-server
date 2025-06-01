@@ -21,6 +21,21 @@ export interface ExtensionProcess {
 }
 
 /**
+ * Serializable version of ExtensionProcess for storage
+ * Excludes the ChildProcess which cannot be serialized
+ */
+export interface SerializableExtensionProcess {
+  sessionId: string;
+  extensionPath: string;
+  testDir: string;
+  prompt: string;
+  startTime: string; // ISO string format
+  pid?: number;
+  output: string[];
+  errors: string[];
+}
+
+/**
  * Arguments for launching a VSCode extension test
  */
 export interface LaunchDevExtensionArgs {

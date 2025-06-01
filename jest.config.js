@@ -1,5 +1,5 @@
 /**
- * Jest configuration for the repo-mcp-server
+ * Jest configuration for the kilo-dev-mcp-server
  *
  * Note: This configuration is not yet working with ESM modules.
  * TODO: Fix ESM compatibility issues with the test setup

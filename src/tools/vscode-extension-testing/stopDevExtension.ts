@@ -46,13 +46,26 @@ class StopDevExtensionTool implements ToolHandler {
     try {
       // Get extension manager
       const manager = ExtensionManager.getInstance();
+      process.stderr.write(
+        `[StopDevExtension] Got extension manager instance\n`
+      );
 
       let result: StopResult | undefined;
 
       if (sessionId) {
         // Stop specific session by ID
+        process.stderr.write(
+          `[StopDevExtension] Stopping specific session by ID: ${sessionId}\n`
+        );
         result = await manager.stopSessionById(sessionId);
+        process.stderr.write(
+          `[StopDevExtension] stopSessionById returned for session: ${sessionId}\n`
+        );
+
         if (!result) {
+          process.stderr.write(
+            `[StopDevExtension] No session found with ID: ${sessionId}\n`
+          );
           return {
             content: [
               {
@@ -66,7 +79,14 @@ class StopDevExtensionTool implements ToolHandler {
       } else {
         // Get current session
         const currentSession = manager.getCurrentSession();
+        process.stderr.write(
+          `[StopDevExtension] Current session: ${
+            currentSession?.sessionId || "none"
+          }\n`
+        );
+
         if (!currentSession) {
+          process.stderr.write(`[StopDevExtension] No active session found\n`);
           return {
             content: [
               {
@@ -78,9 +98,18 @@ class StopDevExtensionTool implements ToolHandler {
         }
 
         // Stop current session
+        process.stderr.write(
+          `[StopDevExtension] Stopping current session: ${currentSession.sessionId}\n`
+        );
         result = await manager.stopCurrentSession();
+        process.stderr.write(
+          `[StopDevExtension] stopCurrentSession returned\n`
+        );
       }
       if (!result) {
+        process.stderr.write(
+          `[StopDevExtension] Failed to stop VSCode extension test. No result returned.\n`
+        );
         return {
           content: [
             {
@@ -92,8 +121,15 @@ class StopDevExtensionTool implements ToolHandler {
         };
       }
 
+      process.stderr.write(
+        `[StopDevExtension] Successfully stopped session: ${result.sessionId}\n`
+      );
+
       // Format duration as seconds with 2 decimal places
       const durationSeconds = (result.duration / 1000).toFixed(2);
+      process.stderr.write(
+        `[StopDevExtension] Session ran for ${durationSeconds} seconds\n`
+      );
 
       // Format output and errors for display
       const outputText =

@@ -51,7 +51,7 @@ async function main() {
 	try {
 		// Create an MCP client connected to the local server
 		console.log("📡 Connecting to MCP server...")
-		const client = new McpClient("stdio://repo-mcp-server")
+		const client = new McpClient("stdio://kilo-dev-mcp-server")
 
 		// Connect to the server
 		await client.connect()

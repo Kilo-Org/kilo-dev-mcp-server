@@ -14,11 +14,11 @@ Before you begin, make sure you have:
 
 ### 2.1 Configure Environment Variables
 
-1. Create or edit the `.env.local` file in the root directory of the repo-mcp-server:
+1. Create or edit the `.env.local` file in the root directory of the kilo-dev-mcp-server:
 
 ```bash
 # Create .env.local file if it doesn't exist
-touch repo-mcp-server/.env.local
+touch kilo-dev-mcp-server/.env.local
 ```
 
 2. Add your OpenRouter API key to the `.env.local` file:
@@ -32,10 +32,10 @@ Replace `your_api_key_here` with your actual OpenRouter API key.
 
 ### 2.2 Install Dependencies
 
-Navigate to the repo-mcp-server directory and install the required dependencies:
+Navigate to the kilo-dev-mcp-server directory and install the required dependencies:
 
 ```bash
-cd repo-mcp-server
+cd kilo-dev-mcp-server
 npm install
 ```
 
@@ -69,7 +69,7 @@ async function main() {
 	try {
 		// Create an MCP client connected to the local server
 		// The URL should match where your MCP server is running
-		const client = new McpClient("stdio://repo-mcp-server")
+		const client = new McpClient("stdio://kilo-dev-mcp-server")
 
 		// Connect to the server
 		await client.connect()
@@ -128,7 +128,7 @@ interface ExpertPanelParams {
 }
 
 async function queryExpertPanel(params: ExpertPanelParams) {
-	const client = new McpClient("stdio://repo-mcp-server")
+	const client = new McpClient("stdio://kilo-dev-mcp-server")
 
 	try {
 		await client.connect()
@@ -171,7 +171,7 @@ To verify that the tool is working correctly:
 1. Start the MCP server:
 
     ```bash
-    cd repo-mcp-server
+    cd kilo-dev-mcp-server
     npm run dev
     ```
 

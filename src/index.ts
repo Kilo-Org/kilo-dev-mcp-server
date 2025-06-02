@@ -68,8 +68,9 @@ const PROJECT_ROOT = process.cwd().includes("kilo-dev-mcp-server")
   ? path.resolve(process.cwd(), "..")
   : process.cwd();
 
-// Initialize the base paths for locales
-const LOCALE_PATHS = {
+// Initialize the base paths for locales - these will be used as fallbacks
+// if workspaceRoot is not provided in the tool call
+const DEFAULT_LOCALE_PATHS = {
   core: path.join(PROJECT_ROOT, "src/i18n/locales"),
   webview: path.join(PROJECT_ROOT, "webview-ui/src/i18n/locales"),
 };
@@ -141,12 +142,28 @@ class McpStdioHandler {
           `[MCP] Arguments: ${JSON.stringify(args, null, 2)}\n`
         );
 
-        // Pass environment variables to handlers
-        const context = {
-          LOCALE_PATHS,
+        // Create the base context
+        const context: {
+          LOCALE_PATHS: { core: string; webview: string };
+          OPENROUTER_API_KEY: string;
+          DEFAULT_MODEL: string;
+          workspaceRoot?: string;
+        } = {
+          LOCALE_PATHS: DEFAULT_LOCALE_PATHS,
           OPENROUTER_API_KEY,
           DEFAULT_MODEL,
         };
+
+        // If workspaceRoot is provided in the args, use it to determine locale paths
+        if (
+          args &&
+          typeof args === "object" &&
+          "workspaceRoot" in args &&
+          typeof args.workspaceRoot === "string"
+        ) {
+          context.workspaceRoot = args.workspaceRoot;
+          // Note: The actual path resolution will happen in the tool implementation
+        }
 
         // Find the requested tool
         const tool = getToolByName(name);

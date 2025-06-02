@@ -215,13 +215,6 @@ DO NOT FORGET to call this tool when you are done. The system will remain blocke
       `[ExtensionManager] Prompt file written successfully\n`
     );
 
-    // Also write a visible copy for debugging
-    const visiblePromptFilePath = path.join(dir, "PROMPT.txt");
-    fs.writeFileSync(visiblePromptFilePath, promptContent);
-    process.stderr.write(
-      `[ExtensionManager] Also wrote visible copy to: ${visiblePromptFilePath}\n`
-    );
-
     // Launch VSCode process
     process.stderr.write(`[ExtensionManager] Spawning VSCode process\n`);
     const vscodeProcess = spawn("code", [

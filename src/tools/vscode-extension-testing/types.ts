@@ -39,8 +39,9 @@ export interface SerializableExtensionProcess {
  * Arguments for launching a VSCode extension test
  */
 export interface LaunchDevExtensionArgs {
-  workspaceDir: string;
+  extensionPath: string;
   prompt: string;
+  launchDir: string;
 }
 
 /**

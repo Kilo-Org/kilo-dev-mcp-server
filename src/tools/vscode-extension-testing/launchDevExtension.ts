@@ -19,16 +19,21 @@ class LaunchDevExtensionTool implements ToolHandler {
   inputSchema = {
     type: "object",
     properties: {
-      workspaceDir: {
+      extensionPath: {
         type: "string",
-        description: "Path to the workspace directory containing the extension",
+        description: "Path to the extension development directory",
       },
       prompt: {
         type: "string",
         description: "The prompt to execute in the extension",
       },
+      launchDir: {
+        type: "string",
+        description:
+          "Directory to open Visual Studio Code in and write the prompt to",
+      },
     },
-    required: ["workspaceDir", "prompt"],
+    required: ["extensionPath", "prompt", "launchDir"],
   };
 
   /**
@@ -51,27 +56,11 @@ class LaunchDevExtensionTool implements ToolHandler {
 
     try {
       // Validate inputs
-      const { workspaceDir, prompt } = args;
+      const { extensionPath, prompt, launchDir } = args;
 
-      // Resolve workspace path to absolute path if it's relative
-      const resolvedWorkspaceDir = path.resolve(process.cwd(), workspaceDir);
-
-      // Derive extension development path and test directory
-      const resolvedExtensionPath = path.join(resolvedWorkspaceDir, "src");
-      const resolvedDir = path.join(resolvedWorkspaceDir, "examples");
-
-      // Check if workspace directory exists
-      if (!fs.existsSync(resolvedWorkspaceDir)) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error: Workspace directory does not exist: ${resolvedWorkspaceDir}`,
-            },
-          ],
-          isError: true,
-        };
-      }
+      // Resolve paths to absolute paths if they're relative
+      const resolvedExtensionPath = path.resolve(process.cwd(), extensionPath);
+      const resolvedLaunchDir = path.resolve(process.cwd(), launchDir);
 
       // Check if extension path exists
       if (!fs.existsSync(resolvedExtensionPath)) {
@@ -79,18 +68,18 @@ class LaunchDevExtensionTool implements ToolHandler {
           content: [
             {
               type: "text",
-              text: `Error: Extension path does not exist: ${resolvedExtensionPath} (derived from ${resolvedWorkspaceDir}/src)`,
+              text: `Error: Extension path does not exist: ${resolvedExtensionPath}`,
             },
           ],
           isError: true,
         };
       }
 
-      // Create test directory if it doesn't exist
-      if (!fs.existsSync(resolvedDir)) {
-        fs.mkdirSync(resolvedDir, { recursive: true });
+      // Create launch directory if it doesn't exist
+      if (!fs.existsSync(resolvedLaunchDir)) {
+        fs.mkdirSync(resolvedLaunchDir, { recursive: true });
         process.stderr.write(
-          `[LaunchDevExtension] Created test directory: ${resolvedDir}\n`
+          `[LaunchDevExtension] Created launch directory: ${resolvedLaunchDir}\n`
         );
       }
 
@@ -102,13 +91,13 @@ class LaunchDevExtensionTool implements ToolHandler {
         `[LaunchDevExtension] About to launch extension at path: ${resolvedExtensionPath}\n`
       );
       process.stderr.write(
-        `[LaunchDevExtension] Using prompt directory: ${resolvedDir}\n`
+        `[LaunchDevExtension] Using launch directory: ${resolvedLaunchDir}\n`
       );
 
       const sessionId = await manager.launchExtension(
         resolvedExtensionPath,
         prompt,
-        resolvedDir
+        resolvedLaunchDir
       );
 
       process.stderr.write(

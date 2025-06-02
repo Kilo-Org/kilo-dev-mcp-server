@@ -115,7 +115,7 @@ class QueryExpertPanelTool implements ToolHandler {
     try {
       // Define the default models to use if not specified
       const defaultModels = [
-        // "deepseek/deepseek-coder-33b-instruct", // DeepSeek coding-focused model with thinking capability
+        "deepseek/deepseek-r1", // DeepSeek coding-focused model with thinking capability
         "openai/o4-mini-high", // More recent OpenAI model with thinking capability
         "google/gemini-2.5-pro-preview", // Google model with thinking capability
       ];

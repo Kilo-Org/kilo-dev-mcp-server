@@ -6,7 +6,11 @@
 import * as fs from "fs";
 import * as path from "path";
 import { Context, McpToolCallResponse, ToolHandler } from "../types.js";
-import { LaunchDevExtensionArgs } from "./types.js";
+// Create a specific type for this tool to avoid confusion with LaunchDevExtensionArgs
+interface WritePromptFileArgs {
+  launchDir: string;
+  prompt: string;
+}
 
 /**
  * Tool to write a prompt file without launching VSCode (for debugging)
@@ -17,16 +21,16 @@ class WritePromptFileTool implements ToolHandler {
   inputSchema = {
     type: "object",
     properties: {
-      workspaceDir: {
+      launchDir: {
         type: "string",
-        description: "Path to the workspace directory",
+        description: "Directory to write the prompt file to",
       },
       prompt: {
         type: "string",
         description: "The prompt to write to the file",
       },
     },
-    required: ["workspaceDir", "prompt"],
+    required: ["launchDir", "prompt"],
   };
 
   /**
@@ -36,7 +40,7 @@ class WritePromptFileTool implements ToolHandler {
    * @returns Tool response
    */
   async execute(
-    args: LaunchDevExtensionArgs,
+    args: WritePromptFileArgs,
     context: Context
   ): Promise<McpToolCallResponse> {
     process.stderr.write(
@@ -49,43 +53,24 @@ class WritePromptFileTool implements ToolHandler {
 
     try {
       // Validate inputs
-      const { workspaceDir, prompt } = args;
+      const { launchDir, prompt } = args;
 
-      // Resolve workspace path to absolute path if it's relative
-      const resolvedWorkspaceDir = path.resolve(process.cwd(), workspaceDir);
+      // Resolve launch directory path to absolute path if it's relative
+      const resolvedLaunchDir = path.resolve(process.cwd(), launchDir);
       process.stderr.write(
-        `[WritePromptFile] Resolved workspace dir: ${resolvedWorkspaceDir}\n`
+        `[WritePromptFile] Resolved launch dir: ${resolvedLaunchDir}\n`
       );
 
-      // Derive test directory
-      const resolvedDir = path.join(resolvedWorkspaceDir, "examples");
-      process.stderr.write(
-        `[WritePromptFile] Using examples dir: ${resolvedDir}\n`
-      );
-
-      // Check if workspace directory exists
-      if (!fs.existsSync(resolvedWorkspaceDir)) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error: Workspace directory does not exist: ${resolvedWorkspaceDir}`,
-            },
-          ],
-          isError: true,
-        };
-      }
-
-      // Create test directory if it doesn't exist
-      if (!fs.existsSync(resolvedDir)) {
-        fs.mkdirSync(resolvedDir, { recursive: true });
+      // Create launch directory if it doesn't exist
+      if (!fs.existsSync(resolvedLaunchDir)) {
+        fs.mkdirSync(resolvedLaunchDir, { recursive: true });
         process.stderr.write(
-          `[WritePromptFile] Created test directory: ${resolvedDir}\n`
+          `[WritePromptFile] Created launch directory: ${resolvedLaunchDir}\n`
         );
       }
 
       // Create prompt file with plain text instructions
-      const promptFilePath = path.join(resolvedDir, ".PROMPT");
+      const promptFilePath = path.join(resolvedLaunchDir, ".PROMPT");
       process.stderr.write(
         `[WritePromptFile] Writing prompt file to: ${promptFilePath}\n`
       );
@@ -119,7 +104,7 @@ DO NOT FORGET to call this tool when you are done. The system will remain blocke
       );
 
       // Also write a visible copy for debugging
-      const visiblePromptFilePath = path.join(resolvedDir, "PROMPT.txt");
+      const visiblePromptFilePath = path.join(resolvedLaunchDir, "PROMPT.txt");
       fs.writeFileSync(visiblePromptFilePath, promptContent);
       process.stderr.write(
         `[WritePromptFile] Also wrote visible copy to: ${visiblePromptFilePath}\n`

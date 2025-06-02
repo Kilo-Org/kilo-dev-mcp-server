@@ -9,12 +9,11 @@ This directory contains MCP tools for testing VSCode extensions by launching the
 Launches a VSCode extension in development mode with a test prompt.
 
 **Parameters:**
-- `workspaceDir` (string): Path to the workspace directory containing the extension
+- `extensionPath` (string): Path to the extension development directory
 - `prompt` (string): The prompt to execute in the extension
+- `launchDir` (string): Directory to open Visual Studio Code in and write the prompt to
 
 **Note:**
-- The extension development path is automatically derived as `<workspaceDir>/src`
-- The test directory is automatically derived as `<workspaceDir>/examples`
 - This tool blocks until the extension test completes or is explicitly stopped by a call to `stop_dev_extension`
 
 **Example:**
@@ -22,8 +21,9 @@ Launches a VSCode extension in development mode with a test prompt.
 {
   "tool": "launch_dev_extension",
   "arguments": {
-    "workspaceDir": "/path/to/my-extension-workspace",
-    "prompt": "Create a new TypeScript file with a hello world function"
+    "extensionPath": "/path/to/my-extension/src",
+    "prompt": "Create a new TypeScript file with a hello world function",
+    "launchDir": "/path/to/test-directory"
   }
 }
 ```
@@ -57,9 +57,7 @@ Or to stop the most recent session:
 
 1. When `launch_dev_extension` is called:
    - A unique session ID is generated
-   - The extension path is derived as `<workspaceDir>/src`
-   - The test directory is derived as `<workspaceDir>/examples`
-   - A `.PROMPT` file is written to the test directory with the prompt and session ID
+   - A `.PROMPT` file is written to the launch directory with the prompt and session ID
    - VSCode is launched with the extension in development mode using the `--wait` flag
    - The `--wait` flag ensures the process stays alive until the window is closed
    - The extension can read the `.PROMPT` file and execute the prompt
@@ -69,7 +67,7 @@ Or to stop the most recent session:
 2. When the extension completes its work:
    - It (or another client) calls `stop_dev_extension`
    - The VSCode process is terminated
-   - The `.PROMPT` file is cleaned up
+   - The `.PROMPT` file is preserved for debugging purposes
    - Results are returned to both the `stop_dev_extension` caller and the waiting `launch_dev_extension` caller
 
 3. Cross-process session management:
@@ -108,7 +106,7 @@ A test script is provided to demonstrate the cross-process functionality:
 
 ```bash
 # Launch an extension in one process
-node examples/test-vscode-extension-persistence.js launch /path/to/extension "Your test prompt"
+node examples/test-vscode-extension-persistence.js launch /path/to/extension/src "Your test prompt" /path/to/test-directory
 
 # Stop the extension from another process using the session ID
 node examples/test-vscode-extension-persistence.js stop test-a1b2c3d4

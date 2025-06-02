@@ -7,7 +7,7 @@
  * 2. Stop mode: Stops a previously launched VSCode extension
  * 
  * Usage:
- *   node examples/test-vscode-extension-persistence.js launch <workspace-dir> <prompt>
+ *   node examples/test-vscode-extension-persistence.js launch <extension-path> <prompt> <launch-dir>
  *   node examples/test-vscode-extension-persistence.js stop <session-id>
  */
 
@@ -17,7 +17,7 @@ import { createMcpClient } from '../src/minimal-mcp.js';
 const mode = process.argv[2];
 if (!mode || (mode !== 'launch' && mode !== 'stop')) {
     console.error('Usage:');
-    console.error('  node examples/test-vscode-extension-persistence.js launch <workspace-dir> <prompt>');
+    console.error('  node examples/test-vscode-extension-persistence.js launch <extension-path> <prompt> <launch-dir>');
     console.error('  node examples/test-vscode-extension-persistence.js stop <session-id>');
     process.exit(1);
 }
@@ -29,20 +29,23 @@ async function main() {
     try {
         if (mode === 'launch') {
             // Launch mode
-            const workspaceDir = process.argv[3];
+            const extensionPath = process.argv[3];
             const prompt = process.argv[4];
+            const launchDir = process.argv[5];
 
-            if (!workspaceDir || !prompt) {
-                console.error('Error: workspace-dir and prompt are required for launch mode');
+            if (!extensionPath || !prompt || !launchDir) {
+                console.error('Error: extension-path, prompt, and launch-dir are required for launch mode');
                 process.exit(1);
             }
 
-            console.log(`Launching VSCode extension in workspace: ${workspaceDir}`);
+            console.log(`Launching VSCode extension with path: ${extensionPath}`);
             console.log(`With prompt: ${prompt}`);
+            console.log(`Using launch directory: ${launchDir}`);
 
             const result = await client.callTool('launch_dev_extension', {
-                workspaceDir,
-                prompt
+                extensionPath,
+                prompt,
+                launchDir
             });
 
             // Extract session ID from the result

@@ -1,4 +1,4 @@
-Write a "poem" markdown file into this dir
+Read and run ./refactor-tool-test-plan.md
 
 ---
 
@@ -8,11 +8,11 @@ use_mcp_tool(
   server_name: "kilo-dev-mcp-server",
   tool_name: "stop_dev_extension",
   arguments: {
-    "sessionId": "test-59d1sv3r"
+    "sessionId": "test-i7pew39f"
   }
 )
 
-Session ID: test-59d1sv3r
+Session ID: test-i7pew39f
 
 This will signal that you have finished the task and allow the system to continue.
 DO NOT FORGET to call this tool when you are done. The system will remain blocked until you do.

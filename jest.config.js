@@ -1,12 +1,11 @@
 /**
  * Jest configuration for the kilo-dev-mcp-server
  *
- * Note: This configuration is not yet working with ESM modules.
- * TODO: Fix ESM compatibility issues with the test setup
+ * This configuration is set up for TypeScript tests with ESM modules.
  */
 
 export default {
-	preset: "ts-jest",
+	preset: "ts-jest/presets/default-esm",
 	testEnvironment: "node",
 	extensionsToTreatAsEsm: [".ts", ".tsx"],
 	moduleNameMapper: {
@@ -24,4 +23,6 @@ export default {
 		// Transform ESM modules in node_modules when needed
 		"node_modules/(?!(p-limit|yocto-queue)/)",
 	],
+	testMatch: ["**/__tests__/**/*.test.ts"],
+	moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json"],
 }

@@ -1,19 +1,12 @@
-/**
- * Main tools index file
- * Collects and exports all tool handlers from different categories
- */
-
 import { ToolHandler } from "./types.js";
 import { i18nTools } from "./i18n/index.js";
-import demoTool from "./demo/demoTool.js";
 import queryExpertPanelTool from "./code-expert/queryExpertPanel.js";
 import { vscodeExtensionTestingTools } from "./vscode-extension-testing/index.js";
 
 // Combine all tools from different categories
 const allTools: ToolHandler[] = [
-  // ...i18nTools,
+  ...i18nTools,
   queryExpertPanelTool,
-  demoTool,
   ...vscodeExtensionTestingTools,
 ];
 

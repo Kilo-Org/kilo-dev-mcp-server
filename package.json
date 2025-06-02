@@ -9,7 +9,8 @@
     "watch": "tsx watch src/index.ts",
     "build": "tsc --noEmit",
     "mcp": "tsx --watch src/index.ts",
-    "minimal-mcp": "tsx --watch src/minimal-mcp.ts"
+    "minimal-mcp": "tsx --watch src/minimal-mcp.ts",
+    "test": "cross-env NODE_OPTIONS=\"--experimental-vm-modules --no-warnings\" jest"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.11.4",
@@ -22,6 +23,7 @@
   "devDependencies": {
     "@types/jest": "^29.5.12",
     "@types/node": "^18.0.0",
+    "cross-env": "^7.0.3",
     "jest": "^29.7.0",
     "ts-jest": "^29.3.4",
     "tsx": "^4.7.1",

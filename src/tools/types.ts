@@ -17,6 +17,7 @@ export type Context = {
   LOCALE_PATHS: {
     core: string;
     webview: string;
+    package: string;
   };
   OPENROUTER_API_KEY: string;
   DEFAULT_MODEL: string;

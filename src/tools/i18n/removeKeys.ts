@@ -48,8 +48,8 @@ class RemoveKeysTool implements ToolHandler {
     properties: {
       target: {
         type: "string",
-        enum: ["core", "webview"],
-        description: "Target directory (core or webview)",
+        enum: ["core", "webview", "package"],
+        description: "Target directory (core, webview, or package)",
       },
       file: {
         type: "string",
@@ -122,11 +122,29 @@ class RemoveKeysTool implements ToolHandler {
 
       // Process each locale
       for (const locale of locales) {
-        const localeFilePath = path.join(
-          localePaths[target as keyof typeof localePaths],
-          locale,
-          jsonFile
-        );
+        let localeFilePath: string;
+
+        if (target === "package") {
+          // For package target, files are package.nls.{locale}.json or package.json for English
+          if (locale === "en") {
+            localeFilePath = path.join(
+              localePaths[target as keyof typeof localePaths],
+              "package.json"
+            );
+          } else {
+            localeFilePath = path.join(
+              localePaths[target as keyof typeof localePaths],
+              `package.nls.${locale}.json`
+            );
+          }
+        } else {
+          // For core/webview targets, use traditional locale subdirectory structure
+          localeFilePath = path.join(
+            localePaths[target as keyof typeof localePaths],
+            locale,
+            jsonFile
+          );
+        }
 
         // Skip if file doesn't exist
         if (!existsSync(localeFilePath)) {

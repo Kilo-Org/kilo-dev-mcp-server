@@ -136,8 +136,8 @@ class MoveKeyTool implements ToolHandler {
     properties: {
       target: {
         type: "string",
-        enum: ["core", "webview"],
-        description: "Target directory (core or webview)",
+        enum: ["core", "webview", "package"],
+        description: "Target directory (core, webview, or package)",
       },
       key: {
         type: "string",
@@ -193,27 +193,52 @@ class MoveKeyTool implements ToolHandler {
       // Move the key for each locale
       const results: string[] = [];
       for (const locale of locales) {
-        const sourceFilePath = path.join(
-          localePaths[target as keyof typeof localePaths],
-          locale,
-          sourceFile
-        );
-        const destFilePath = path.join(
-          localePaths[target as keyof typeof localePaths],
-          locale,
-          destFile
-        );
+        let sourceFilePath: string;
+        let destFilePath: string;
+        let englishDestFilePath: string | undefined;
 
-        // For non-English locales, provide path to English destination file for key ordering
-        const isEnglishLocale = locale === englishLocale;
-        const englishDestFilePath = isEnglishLocale
-          ? undefined
-          : path.join(
+        if (target === "package") {
+          // For package target, files are package.nls.{locale}.json or package.json for English
+          if (locale === "en") {
+            sourceFilePath = path.join(
               localePaths[target as keyof typeof localePaths],
-              englishLocale,
-              destFile
+              "package.json"
             );
+            destFilePath = sourceFilePath; // Same file for package target
+          } else {
+            sourceFilePath = path.join(
+              localePaths[target as keyof typeof localePaths],
+              `package.nls.${locale}.json`
+            );
+            destFilePath = sourceFilePath; // Same file for package target
+          }
+          // For package target, there's no separate source/dest files, so no English dest file needed
+          englishDestFilePath = undefined;
+        } else {
+          // For core/webview targets, use traditional locale subdirectory structure
+          sourceFilePath = path.join(
+            localePaths[target as keyof typeof localePaths],
+            locale,
+            sourceFile
+          );
+          destFilePath = path.join(
+            localePaths[target as keyof typeof localePaths],
+            locale,
+            destFile
+          );
 
+          // For non-English locales, provide path to English destination file for key ordering
+          const isEnglishLocale = locale === englishLocale;
+          englishDestFilePath = isEnglishLocale
+            ? undefined
+            : path.join(
+                localePaths[target as keyof typeof localePaths],
+                englishLocale,
+                destFile
+              );
+        }
+
+        const isEnglishLocale = locale === englishLocale;
         const result = await moveKeyForLocale(
           sourceFilePath,
           destFilePath,

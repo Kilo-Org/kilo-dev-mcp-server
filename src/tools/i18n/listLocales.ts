@@ -14,8 +14,8 @@ class ListLocalesTool implements ToolHandler {
     properties: {
       target: {
         type: "string",
-        enum: ["core", "webview"],
-        description: "Target directory (core or webview)",
+        enum: ["core", "webview", "package"],
+        description: "Target directory (core, webview, or package)",
       },
       workspaceRoot: {
         type: "string",

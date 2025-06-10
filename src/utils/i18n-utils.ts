@@ -13,7 +13,7 @@ import { detectIndentation } from "./json-utils.js";
 export function getLocalePaths(
   context: Context,
   workspaceRoot?: string
-): { core: string; webview: string } {
+): { core: string; webview: string; package: string } {
   let localePaths = context.LOCALE_PATHS;
 
   if (workspaceRoot) {
@@ -22,6 +22,7 @@ export function getLocalePaths(
     localePaths = {
       core: path.join(workspaceRoot, "src/i18n/locales"),
       webview: path.join(workspaceRoot, "webview-ui/src/i18n/locales"),
+      package: path.join(workspaceRoot, "src"),
     };
   } else if (context.workspaceRoot) {
     console.error(
@@ -31,6 +32,7 @@ export function getLocalePaths(
     localePaths = {
       core: path.join(context.workspaceRoot, "src/i18n/locales"),
       webview: path.join(context.workspaceRoot, "webview-ui/src/i18n/locales"),
+      package: path.join(context.workspaceRoot, "src"),
     };
   }
 

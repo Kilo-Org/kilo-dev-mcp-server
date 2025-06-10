@@ -73,6 +73,7 @@ const PROJECT_ROOT = process.cwd().includes("kilo-dev-mcp-server")
 const DEFAULT_LOCALE_PATHS = {
   core: path.join(PROJECT_ROOT, "src/i18n/locales"),
   webview: path.join(PROJECT_ROOT, "webview-ui/src/i18n/locales"),
+  package: path.join(PROJECT_ROOT, "src"),
 };
 
 // Log important paths for debugging
@@ -144,7 +145,7 @@ class McpStdioHandler {
 
         // Create the base context
         const context: {
-          LOCALE_PATHS: { core: string; webview: string };
+          LOCALE_PATHS: { core: string; webview: string; package: string };
           OPENROUTER_API_KEY: string;
           DEFAULT_MODEL: string;
           workspaceRoot?: string;

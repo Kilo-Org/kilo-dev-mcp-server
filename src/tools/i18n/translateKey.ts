@@ -15,10 +15,8 @@ import { reorderJsonToMatchSource } from "../../utils/order-utils.js";
 import {
   getLocalePaths,
   findEnglishLocale,
-  formatJsonWithIndentation,
   readJsonFile,
   writeJsonFile,
-  ensureJsonExtension,
 } from "../../utils/i18n-utils.js";
 
 /**
@@ -28,8 +26,9 @@ import {
  */
 async function expandParentKeys(
   paths: string[],
-  target: "core" | "webview",
-  localePaths: { core: string; webview: string }
+  target: "core" | "webview" | "package",
+  localePaths: { core: string; webview: string; package: string },
+  debugMessages: string[] = []
 ): Promise<string[]> {
   // Get all locales to find English
   const locales = await getI18nLocales(target, localePaths);
@@ -50,8 +49,85 @@ async function expandParentKeys(
       continue;
     }
 
-    // All keys must use the colon format (filename:keyPath)
-    if (keyPath.includes(":")) {
+    // Handle different key formats based on target
+    if (target === "package") {
+      // For package target, keys are direct flat keys (no filename prefix needed)
+      // since there's only one file per locale and keys are stored flat like "command.generateCommitMessage.title"
+      const directKey = keyPath;
+      const englishFilePath = path.join(localePaths[target], "package.json");
+
+      debugMessages.push(
+        `🔍 DEBUG: Package target - checking for key: ${directKey}`
+      );
+      debugMessages.push(`🔍 DEBUG: Package file path: ${englishFilePath}`);
+
+      // Check if the file exists
+      if (!existsSync(englishFilePath)) {
+        debugMessages.push(`❌ Package file not found: ${englishFilePath}`);
+        debugMessages.push(
+          `🔍 DEBUG: Tried to access package.json at: ${englishFilePath}`
+        );
+        debugMessages.push(
+          `🔍 DEBUG: localePaths[${target}] = ${localePaths[target]}`
+        );
+        continue;
+      }
+
+      // Read the English file
+      const englishContent = await fs.readFile(englishFilePath, "utf-8");
+      const englishJson = JSON.parse(englishContent);
+
+      // Enhanced debugging - show file structure
+      const allKeys = Object.keys(englishJson);
+      debugMessages.push(
+        `🔍 DEBUG: Found package.json with ${allKeys.length} total keys`
+      );
+      debugMessages.push(
+        `🔍 DEBUG: First 10 keys: ${allKeys.slice(0, 10).join(", ")}`
+      );
+      debugMessages.push(`🔍 DEBUG: Looking for exact key: "${directKey}"`);
+
+      // Check for similar keys to help with debugging
+      const similarKeys = allKeys.filter(
+        (key) =>
+          key.toLowerCase().includes(directKey.toLowerCase()) ||
+          directKey.toLowerCase().includes(key.toLowerCase())
+      );
+      if (similarKeys.length > 0) {
+        debugMessages.push(
+          `🔍 DEBUG: Similar keys found: ${similarKeys.join(", ")}`
+        );
+      }
+
+      // For package target, check if the key exists directly in the flat structure
+      if (englishJson.hasOwnProperty(directKey)) {
+        // Key exists directly, add it
+        expandedPaths.push(directKey);
+        debugMessages.push(`✅ Found direct key: ${directKey}`);
+      } else {
+        // Key doesn't exist directly, check if it's a prefix for other keys (parent expansion)
+        const matchingKeys = Object.keys(englishJson).filter(
+          (key) => key.startsWith(directKey + ".") || key === directKey
+        );
+
+        if (matchingKeys.length > 0) {
+          expandedPaths.push(...matchingKeys);
+          debugMessages.push(
+            `✅ Found ${
+              matchingKeys.length
+            } keys matching prefix "${directKey}": ${matchingKeys.join(", ")}`
+          );
+        } else {
+          debugMessages.push(
+            `❌ No keys found matching "${directKey}" in package.json`
+          );
+          debugMessages.push(`🔍 DEBUG: Exact key "${directKey}" not found`);
+          debugMessages.push(`🔍 DEBUG: No keys start with "${directKey}."`);
+          debugMessages.push(`🔍 DEBUG: Available keys: ${allKeys.join(", ")}`);
+        }
+      }
+    } else if (keyPath.includes(":")) {
+      // All keys for core/webview must use the colon format (filename:keyPath)
       const parts = keyPath.split(":");
 
       // Ensure we have exactly two parts (fileName:parentKey)
@@ -72,28 +148,13 @@ async function expandParentKeys(
         continue;
       }
 
-      // Handle special case for package.nls files which have a different structure
-      let englishFilePath: string;
-      let jsonFile: string;
-
-      if (fileName === "package" || fileName === "package.nls") {
-        // For package files, they're typically at the root as package.nls.json
-        jsonFile = "package.nls.json";
-        englishFilePath = path.join(
-          path.dirname(localePaths[target]), // Go up one level from the locales directory
-          jsonFile
-        );
-
-        console.error(`🔍 DEBUG: Special case for package.nls file`);
-      } else {
-        // Standard case for regular i18n files
-        jsonFile = `${fileName}.json`;
-        englishFilePath = path.join(
-          localePaths[target],
-          englishLocale,
-          jsonFile
-        );
-      }
+      // Standard case for regular i18n files
+      const jsonFile = `${fileName}.json`;
+      let englishFilePath = path.join(
+        localePaths[target],
+        englishLocale,
+        jsonFile
+      );
 
       // Log the paths being checked
       console.error(
@@ -220,8 +281,8 @@ class TranslateKeyTool implements ToolHandler {
     properties: {
       target: {
         type: "string",
-        enum: ["core", "webview"],
-        description: "Target directory (core or webview)",
+        enum: ["core", "webview", "package"],
+        description: "Target directory (core, webview, or package)",
       },
       paths: {
         type: "array",
@@ -229,7 +290,7 @@ class TranslateKeyTool implements ToolHandler {
           type: "string",
         },
         description:
-          'Array of paths to translate in English locale. Format: "filename:keyPath" (e.g., "kilocode:lowCreditWarning.nice") where the colon separates the filename from the key path. For parent keys (e.g., "kilocode:veryCool"), all child keys will be translated.',
+          'Array of paths to translate in English locale. For core/webview targets, use format "filename:keyPath" (e.g., "kilocode:lowCreditWarning.nice"). For package target, use the direct key path (e.g., "command.generateCommitMessage.title") - namespace prefixes like "package:" will be automatically stripped.',
       },
       workspaceRoot: {
         type: "string",
@@ -257,14 +318,12 @@ class TranslateKeyTool implements ToolHandler {
   };
 
   async execute(args: any, context: Context): Promise<McpToolCallResponse> {
-    console.error(
-      "🔍 DEBUG: Translation request received with args:",
-      JSON.stringify(args, null, 2)
-    );
-    console.error(
-      "🔍 DEBUG: Context paths:",
-      JSON.stringify(context.LOCALE_PATHS, null, 2)
-    );
+    const debugMessages: string[] = [];
+
+    debugMessages.push("🔍 DEBUG: Translation request received with args:");
+    debugMessages.push(JSON.stringify(args, null, 2));
+    debugMessages.push("🔍 DEBUG: Context paths:");
+    debugMessages.push(JSON.stringify(context.LOCALE_PATHS, null, 2));
 
     const {
       target,
@@ -315,6 +374,42 @@ class TranslateKeyTool implements ToolHandler {
       // Process paths to handle different formats and auto-detection
       let processedPaths = [...paths];
 
+      // For package target, strip any namespace prefixes and handle flat key structure
+      if (target === "package") {
+        debugMessages.push(
+          `🔍 DEBUG: Processing ${processedPaths.length} paths for package target`
+        );
+        debugMessages.push(
+          `🔍 DEBUG: Original paths: ${processedPaths.join(", ")}`
+        );
+
+        processedPaths = processedPaths.map((p: string) => {
+          // Strip namespace prefix if present (e.g., "package:command.title" -> "command.title")
+          if (p.includes(":")) {
+            const parts = p.split(":");
+            if (parts.length === 2) {
+              debugMessages.push(
+                `🔍 DEBUG: Stripping namespace "${parts[0]}" from package key, using: ${parts[1]}`
+              );
+              return parts[1];
+            } else {
+              debugMessages.push(
+                `🔍 DEBUG: Invalid namespace format in "${p}", expected exactly one colon`
+              );
+            }
+          } else {
+            debugMessages.push(
+              `🔍 DEBUG: No namespace found in "${p}", using as-is`
+            );
+          }
+          return p;
+        });
+
+        debugMessages.push(
+          `🔍 DEBUG: Processed paths: ${processedPaths.join(", ")}`
+        );
+      }
+
       // Handle context-awareness if useCurrentFile is true
       if (useCurrentFile && process.env.VSCODE_OPEN_FILES) {
         try {
@@ -345,11 +440,14 @@ class TranslateKeyTool implements ToolHandler {
       }
 
       // Process paths to expand parent keys and handle auto-detection
-      console.error(`🔍 DEBUG: Expanding paths: ${processedPaths.join(", ")}`);
+      debugMessages.push(
+        `🔍 DEBUG: Expanding paths: ${processedPaths.join(", ")}`
+      );
       const keyPaths = await expandParentKeys(
         processedPaths,
         target,
-        localePaths
+        localePaths,
+        debugMessages
       );
 
       console.error(
@@ -401,26 +499,38 @@ class TranslateKeyTool implements ToolHandler {
           continue;
         }
 
-        // Keys must be in the format filename.key1.key2...
-        // This is the internal format after expansion from filename:key1.key2...
-        const parts = keyPath.split(".");
-        if (parts.length < 2) {
-          allResults.push(
-            `❌ Invalid key format: ${keyPath} (should be in internal format 'filename.keyPath' after expansion)`
-          );
-          continue;
+        if (target === "package") {
+          // For package target, keys are direct flat keys (no filename prefix)
+          const jsonFile = "package.json";
+          const keyInFile = keyPath; // Use the key directly as it appears in the flat structure
+
+          if (!keysByFile[jsonFile]) {
+            keysByFile[jsonFile] = [];
+          }
+
+          keysByFile[jsonFile].push(keyInFile);
+        } else {
+          // Keys must be in the format filename.key1.key2...
+          // This is the internal format after expansion from filename:key1.key2...
+          const parts = keyPath.split(".");
+          if (parts.length < 2) {
+            allResults.push(
+              `❌ Invalid key format: ${keyPath} (should be in internal format 'filename.keyPath' after expansion)`
+            );
+            continue;
+          }
+
+          const fileName = parts[0];
+          const keyParts = parts.slice(1);
+          const jsonFile = `${fileName}.json`;
+          const keyInFile = keyParts.join(".");
+
+          if (!keysByFile[jsonFile]) {
+            keysByFile[jsonFile] = [];
+          }
+
+          keysByFile[jsonFile].push(keyInFile);
         }
-
-        const fileName = parts[0];
-        const keyParts = parts.slice(1);
-        const jsonFile = `${fileName}.json`;
-        const keyInFile = keyParts.join(".");
-
-        if (!keysByFile[jsonFile]) {
-          keysByFile[jsonFile] = [];
-        }
-
-        keysByFile[jsonFile].push(keyInFile);
       }
 
       // Calculate total keys to translate
@@ -446,13 +556,35 @@ class TranslateKeyTool implements ToolHandler {
 
       // Process each file
       for (const [jsonFile, keysInFile] of Object.entries(keysByFile)) {
-        // Handle special case for package.nls files
+        // Handle different file structures based on target
         let englishFilePath: string = "";
-        let isPackageNls = false;
+        let isPackageTarget = target === "package";
 
-        if (jsonFile === "package.json" || jsonFile === "package.nls.json") {
-          isPackageNls = true;
-          // For package files, they're typically at the root as package.nls.json
+        if (isPackageTarget && jsonFile === "package.json") {
+          // For package target, the English source is package.json
+          englishFilePath = path.join(
+            localePaths[target as keyof typeof localePaths],
+            "package.json"
+          );
+
+          console.error(
+            `🔍 DEBUG: Package target - looking for package.json at: ${englishFilePath}`
+          );
+
+          if (!existsSync(englishFilePath)) {
+            console.error(
+              `❌ Could not find package.json at: ${englishFilePath}`
+            );
+            allResults.push(
+              `❌ File not found: package.json at ${englishFilePath}`
+            );
+            continue;
+          }
+        } else if (
+          jsonFile === "package.json" ||
+          jsonFile === "package.nls.json"
+        ) {
+          // Legacy handling for package.nls files in core/webview targets
           const packageFile =
             jsonFile === "package.json" ? "package.nls.json" : jsonFile;
 
@@ -471,7 +603,7 @@ class TranslateKeyTool implements ToolHandler {
           ];
 
           console.error(
-            `🔍 DEBUG: Special case for package.nls file, trying multiple paths`
+            `🔍 DEBUG: Legacy package.nls file, trying multiple paths`
           );
 
           // Find the first path that exists
@@ -542,14 +674,45 @@ class TranslateKeyTool implements ToolHandler {
         const invalidKeys: string[] = [];
 
         for (const keyInFile of keysInFile) {
-          const valueToTranslate = getI18nNestedKey(englishJson, keyInFile);
+          let valueToTranslate;
+
+          if (isPackageTarget) {
+            // For package target, keys are stored flat, so access directly
+            valueToTranslate = englishJson[keyInFile];
+          } else {
+            // For core/webview targets, use nested key access
+            valueToTranslate = getI18nNestedKey(englishJson, keyInFile);
+          }
+
           console.error(
             `🔍 DEBUG: Key "${keyInFile}" in ${jsonFile} => Value: "${valueToTranslate}"`
           );
 
           if (valueToTranslate === undefined) {
-            // Simply report the key was not found without suggestions
-            allResults.push(`❌ Key "${keyInFile}" not found in ${jsonFile}`);
+            // Enhanced error reporting for package targets
+            if (isPackageTarget) {
+              const allKeys = Object.keys(englishJson);
+              const similarKeys = allKeys.filter(
+                (key) =>
+                  key.toLowerCase().includes(keyInFile.toLowerCase()) ||
+                  keyInFile.toLowerCase().includes(key.toLowerCase())
+              );
+
+              let errorMsg = `❌ Key "${keyInFile}" not found in ${jsonFile}`;
+              if (similarKeys.length > 0) {
+                errorMsg += `\n🔍 Similar keys found: ${similarKeys
+                  .slice(0, 5)
+                  .join(", ")}`;
+              }
+              errorMsg += `\n🔍 Total keys in file: ${allKeys.length}`;
+              errorMsg += `\n🔍 First 10 keys: ${allKeys
+                .slice(0, 10)
+                .join(", ")}`;
+
+              allResults.push(errorMsg);
+            } else {
+              allResults.push(`❌ Key "${keyInFile}" not found in ${jsonFile}`);
+            }
             invalidKeys.push(keyInFile);
             continue;
           }
@@ -578,11 +741,28 @@ class TranslateKeyTool implements ToolHandler {
           // Skip English locale
           if (locale === englishLocale) continue;
 
-          const targetFilePath = path.join(
-            localePaths[target as keyof typeof localePaths],
-            locale,
-            jsonFile
-          );
+          let targetFilePath: string;
+
+          if (isPackageTarget) {
+            // For package target, files are package.nls.{locale}.json in the same directory
+            if (locale === "en") {
+              // English is the source package.json file
+              targetFilePath = englishFilePath;
+            } else {
+              // Other locales are package.nls.{locale}.json
+              targetFilePath = path.join(
+                localePaths[target as keyof typeof localePaths],
+                `package.nls.${locale}.json`
+              );
+            }
+          } else {
+            // For core/webview targets, use the traditional locale subdirectory structure
+            targetFilePath = path.join(
+              localePaths[target as keyof typeof localePaths],
+              locale,
+              jsonFile
+            );
+          }
 
           // Create directory if it doesn't exist
           const targetDir = path.dirname(targetFilePath);
@@ -616,7 +796,15 @@ class TranslateKeyTool implements ToolHandler {
 
           // Create translation tasks for each key in this file and locale
           for (const keyInFile of validKeys) {
-            const valueToTranslate = getI18nNestedKey(englishJson, keyInFile);
+            let valueToTranslate;
+
+            if (isPackageTarget) {
+              // For package target, keys are stored flat
+              valueToTranslate = englishJson[keyInFile];
+            } else {
+              // For core/webview targets, use nested key access
+              valueToTranslate = getI18nNestedKey(englishJson, keyInFile);
+            }
 
             // Create a task for each translation and add it to the queue
             const task = limit(async () => {
@@ -631,7 +819,17 @@ class TranslateKeyTool implements ToolHandler {
                 );
 
                 // Set the translated value in the target JSON
-                setI18nNestedKey(fileOp.targetJson, keyInFile, translatedValue);
+                if (isPackageTarget) {
+                  // For package target, set the key directly in the flat structure
+                  fileOp.targetJson[keyInFile] = translatedValue;
+                } else {
+                  // For core/webview targets, use nested key setting
+                  setI18nNestedKey(
+                    fileOp.targetJson,
+                    keyInFile,
+                    translatedValue
+                  );
+                }
 
                 allResults.push(
                   `✅ Translated key "${keyInFile}" in ${locale}`
@@ -746,7 +944,9 @@ class TranslateKeyTool implements ToolHandler {
             type: "text",
             text: `Translation results:\n\n${allResults.join(
               "\n"
-            )}\n\nSuccessfully translated ${totalSuccessCount} of ${totalKeysCount} keys (${successRate}%).\n\nThe translations have been updated.`,
+            )}\n\nSuccessfully translated ${totalSuccessCount} of ${totalKeysCount} keys (${successRate}%).\n\nThe translations have been updated.\n\n--- DEBUG INFORMATION ---\n${debugMessages.join(
+              "\n"
+            )}`,
           },
         ],
       };
@@ -763,7 +963,7 @@ class TranslateKeyTool implements ToolHandler {
             type: "text",
             text: `Error translating keys: ${
               error instanceof Error ? error.message : String(error)
-            }\n\nDebug information has been logged to the console. Please check the terminal where the MCP server is running.`,
+            }\n\n--- DEBUG INFORMATION ---\n${debugMessages.join("\n")}`,
           },
         ],
         isError: true,

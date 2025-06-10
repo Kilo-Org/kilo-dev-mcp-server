@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 
 /**
- * Main entry point for MCP stdio script
- * For backward compatibility, runs all tools by default
+ * i18n Tools MCP Server
+ * Specialized entry point that only includes i18n tools
  */
 
+// Simply re-export the server with the i18n tool set
 import { spawn } from "child_process";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -12,20 +13,20 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const serverPath = path.join(__dirname, "server.js");
 
-// Start the server with all tools (for backward compatibility)
-const server = spawn("node", [serverPath, "all"], {
+// Start the server with only the i18n tools
+const server = spawn("node", [serverPath, "i18n"], {
   stdio: "inherit",
 });
 
 // Handle server process events
 server.on("error", (err) => {
-  console.error(`Failed to start MCP server: ${err.message}`);
+  console.error(`Failed to start i18n server: ${err.message}`);
   process.exit(1);
 });
 
 server.on("exit", (code) => {
   if (code !== 0) {
-    console.error(`MCP server exited with code ${code}`);
+    console.error(`i18n server exited with code ${code}`);
     process.exit(code || 1);
   }
   process.exit(0);

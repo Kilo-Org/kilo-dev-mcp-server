@@ -8,8 +8,10 @@
     "dev": "tsx src/index.ts",
     "watch": "tsx watch src/index.ts",
     "build": "tsc --noEmit",
-    "mcp": "tsx --watch src/index.ts",
-    "minimal-mcp": "tsx --watch src/minimal-mcp.ts",
+    "mcp": "tsx --watch src/server.ts all",
+    "mcp:i18n": "tsx --watch src/server.ts i18n",
+    "mcp:code-expert": "tsx --watch src/server.ts code-expert",
+    "mcp:vscode": "tsx --watch src/server.ts vscode",
     "test": "cross-env NODE_OPTIONS=\"--experimental-vm-modules --no-warnings\" jest"
   },
   "dependencies": {

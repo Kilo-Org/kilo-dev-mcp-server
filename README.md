@@ -17,7 +17,11 @@ The codebase is organized as follows:
 ```
 kilo-dev-mcp-server/
 ├── src/
-│   ├── index.ts              # Main entry point, starts the MCP server
+│   ├── index.ts              # Main entry point, starts the MCP server with all tools
+│   ├── server.ts             # Configurable server that can run specific tool sets
+│   ├── i18n-server.ts        # Entry point for running only i18n tools
+│   ├── code-expert-server.ts # Entry point for running only code expert tools
+│   ├── vscode-server.ts      # Entry point for running only VSCode extension testing tools
 │   ├── tools/                # MCP tools directory
 │   │   ├── types.ts          # Type definitions for tools
 │   │   ├── index.ts          # Tool registration
@@ -30,8 +34,10 @@ kilo-dev-mcp-server/
 │   │   ├── code-expert/      # Code expert panel tools
 │   │   │   ├── queryExpertPanel.ts # Tool for querying expert panel
 │   │   │   └── README.md     # Documentation for code expert panel
-│   │   └── demo/             # Demo tools
-│   │       └── demoTool.ts   # Simple demo tool for testing
+│   │   └── vscode-extension-testing/ # VSCode extension testing tools
+│   │       ├── index.ts      # VSCode extension testing tool exports
+│   │       ├── launchDevExtension.ts # Tool for launching dev extensions
+│   │       └── stopDevExtension.ts # Tool for stopping dev extensions
 │   └── utils/                # Utility functions
 │       ├── json-utils.ts     # JSON handling utilities
 │       ├── locale-utils.ts   # Locale detection and management
@@ -52,8 +58,10 @@ This server provides the following MCP tools:
 ### Code Expert Panel Tools
 4. `query_expert_panel` - Query a panel of LLM experts for opinions on code quality, refactoring suggestions, or architectural decisions
 
-### Demo Tools
-5. `demo_tool` - A simple tool that returns a constant string for testing purposes
+### VSCode Extension Testing Tools
+5. `launch_dev_extension` - Launch a VSCode extension in development mode with a test prompt
+6. `stop_dev_extension` - Stop a VSCode extension test by session ID or the currently running test
+7. `write_prompt_file` - Write a prompt file without launching VSCode (for debugging)
 
 ## Development
 
@@ -75,10 +83,30 @@ This server provides the following MCP tools:
 
 This server is a simple script that's executed directly via TSX. It doesn't need to be built or started separately. The Kilo Code extension communicates with it via stdio, launching it as a child process when needed for translation tasks.
 
-For local testing, you can run:
+You can run the server with different tool sets using the following npm scripts:
 
+```bash
+# Run all tools (default)
+npm run mcp
+
+# Run only i18n tools
+npm run mcp:i18n
+
+# Run only code expert tools
+npm run mcp:code-expert
+
+# Run only VSCode extension testing tools
+npm run mcp:vscode
 ```
-npx tsx src/index.ts
+
+You can also run the server directly with specific tool sets:
+
+```bash
+# Run with specific tool sets
+npx tsx src/server.ts i18n code-expert
+
+# Run all tools
+npx tsx src/server.ts all
 ```
 
 ## Configuration

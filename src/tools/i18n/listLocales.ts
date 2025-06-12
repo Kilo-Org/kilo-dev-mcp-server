@@ -23,7 +23,7 @@ class ListLocalesTool implements ToolHandler {
           "Root path of the workspace/repository (used to locate locale files)",
       },
     },
-    required: ["target"],
+    required: ["target", "workspaceRoot"],
   };
 
   async execute(args: any, context: Context): Promise<McpToolCallResponse> {

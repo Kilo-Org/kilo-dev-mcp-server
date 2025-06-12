@@ -161,7 +161,7 @@ class MoveKeyTool implements ToolHandler {
         description: "Optional new key name for the destination",
       },
     },
-    required: ["target", "key", "source", "destination"],
+    required: ["target", "key", "source", "destination", "workspaceRoot"],
   };
 
   async execute(args: any, context: Context): Promise<McpToolCallResponse> {

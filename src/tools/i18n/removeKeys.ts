@@ -69,7 +69,7 @@ class RemoveKeysTool implements ToolHandler {
           "Root path of the workspace/repository (used to locate locale files)",
       },
     },
-    required: ["target", "file", "keys"],
+    required: ["target", "file", "keys", "workspaceRoot"],
   };
 
   async execute(args: any, context: Context): Promise<McpToolCallResponse> {

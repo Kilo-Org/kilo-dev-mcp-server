@@ -314,7 +314,7 @@ class TranslateKeyTool implements ToolHandler {
         description: "List of locale codes to translate to (empty for all)",
       },
     },
-    required: ["target", "paths"],
+    required: ["target", "paths", "workspaceRoot"],
   };
 
   async execute(args: any, context: Context): Promise<McpToolCallResponse> {
@@ -322,8 +322,6 @@ class TranslateKeyTool implements ToolHandler {
 
     debugMessages.push("🔍 DEBUG: Translation request received with args:");
     debugMessages.push(JSON.stringify(args, null, 2));
-    debugMessages.push("🔍 DEBUG: Context paths:");
-    debugMessages.push(JSON.stringify(context.LOCALE_PATHS, null, 2));
 
     const {
       target,
@@ -350,6 +348,9 @@ class TranslateKeyTool implements ToolHandler {
 
     // Get locale paths using the utility function
     const localePaths = getLocalePaths(context, workspaceRoot);
+
+    debugMessages.push("🔍 DEBUG: Actual locale paths being used:");
+    debugMessages.push(JSON.stringify(localePaths, null, 2));
 
     try {
       // Get all locales to translate to

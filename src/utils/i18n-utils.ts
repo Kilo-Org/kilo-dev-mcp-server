@@ -9,35 +9,34 @@ import { detectIndentation } from "./json-utils.js";
 
 /**
  * Determine locale paths based on workspace root
+ * REQUIRES workspace root parameter - no fallbacks
  */
 export function getLocalePaths(
   context: Context,
   workspaceRoot?: string
 ): { core: string; webview: string; package: string } {
-  let localePaths = context.LOCALE_PATHS;
-
-  if (workspaceRoot) {
-    console.error(`🔍 DEBUG: Using provided workspace root: ${workspaceRoot}`);
-    // Override the locale paths with the provided workspace root
-    localePaths = {
-      core: path.join(workspaceRoot, "src/i18n/locales"),
-      webview: path.join(workspaceRoot, "webview-ui/src/i18n/locales"),
-      package: path.join(workspaceRoot, "src"),
-    };
-  } else if (context.workspaceRoot) {
-    console.error(
-      `🔍 DEBUG: Using context workspace root: ${context.workspaceRoot}`
+  if (!workspaceRoot) {
+    throw new Error(
+      "workspaceRoot parameter is required - no fallback paths will be used"
     );
-    // Use the workspace root from context if available
-    localePaths = {
-      core: path.join(context.workspaceRoot, "src/i18n/locales"),
-      webview: path.join(context.workspaceRoot, "webview-ui/src/i18n/locales"),
-      package: path.join(context.workspaceRoot, "src"),
-    };
   }
 
   console.error(
-    `🔍 DEBUG: Using locale paths:`,
+    `🔍 DEBUG: getLocalePaths called with workspaceRoot: ${workspaceRoot}`
+  );
+  console.error(
+    `🔍 DEBUG: Original context paths:`,
+    JSON.stringify(context.LOCALE_PATHS, null, 2)
+  );
+
+  const localePaths = {
+    core: path.join(workspaceRoot, "src/i18n/locales"),
+    webview: path.join(workspaceRoot, "webview-ui/src/i18n/locales"),
+    package: path.join(workspaceRoot, "src"),
+  };
+
+  console.error(
+    `🔍 DEBUG: Constructed new locale paths:`,
     JSON.stringify(localePaths, null, 2)
   );
 

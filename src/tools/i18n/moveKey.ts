@@ -93,32 +93,36 @@ async function moveKeyForLocale(
   await writeJsonFile(sourceFilePath, sourceJson, sourceContent);
 
   // For non-English locales, reorder keys to match English structure if available
-  if (
-    !isEnglishLocale &&
-    englishDestFilePath &&
-    existsSync(englishDestFilePath)
-  ) {
-    try {
-      const { json: englishJson, content: englishContent } = await readJsonFile(
-        englishDestFilePath
-      );
+  // COMMENTED OUT: We don't want to do any reordering as part of moving keys
+  // if (
+  //   !isEnglishLocale &&
+  //   englishDestFilePath &&
+  //   existsSync(englishDestFilePath)
+  // ) {
+  //   try {
+  //     const { json: englishJson, content: englishContent } = await readJsonFile(
+  //       englishDestFilePath
+  //     );
 
-      // Reorder the destination JSON to match the English structure
-      const reorderedDestJson = reorderJsonToMatchSource(englishJson, destJson);
+  //     // Reorder the destination JSON to match the English structure
+  //     const reorderedDestJson = reorderJsonToMatchSource(englishJson, destJson);
 
-      // Write the reordered destination JSON
-      await writeJsonFile(destFilePath, reorderedDestJson, englishContent);
-    } catch (error) {
-      // If reordering fails, fall back to original order
-      console.error(
-        `⚠️ Failed to reorder keys for ${locale}, writing with original order: ${error}`
-      );
-      await writeJsonFile(destFilePath, destJson, destContent);
-    }
-  } else {
-    // English locale or no English reference file available
-    await writeJsonFile(destFilePath, destJson, destContent);
-  }
+  //     // Write the reordered destination JSON
+  //     await writeJsonFile(destFilePath, reorderedDestJson, englishContent);
+  //   } catch (error) {
+  //     // If reordering fails, fall back to original order
+  //     console.error(
+  //       `⚠️ Failed to reorder keys for ${locale}, writing with original order: ${error}`
+  //     );
+  //     await writeJsonFile(destFilePath, destJson, destContent);
+  //   }
+  // } else {
+  //   // English locale or no English reference file available
+  //   await writeJsonFile(destFilePath, destJson, destContent);
+  // }
+
+  // Always write destination file without reordering
+  await writeJsonFile(destFilePath, destJson, destContent);
 
   return `✅ Moved key "${keyToMove}" ${
     newKeyName ? `to "${newKeyName}"` : ""

@@ -69,8 +69,21 @@ class WritePromptFileTool implements ToolHandler {
         );
       }
 
+      // Create .kilocode directory if it doesn't exist
+      const kilocodeDir = path.join(resolvedLaunchDir, ".kilocode");
+      if (!fs.existsSync(kilocodeDir)) {
+        fs.mkdirSync(kilocodeDir, { recursive: true });
+        process.stderr.write(
+          `[WritePromptFile] Created .kilocode directory: ${kilocodeDir}\n`
+        );
+      }
+
       // Create prompt file with plain text instructions
-      const promptFilePath = path.join(resolvedLaunchDir, ".PROMPT");
+      const promptFilePath = path.join(
+        resolvedLaunchDir,
+        ".kilocode",
+        "launchPrompt.md"
+      );
       process.stderr.write(
         `[WritePromptFile] Writing prompt file to: ${promptFilePath}\n`
       );

@@ -57,17 +57,17 @@ Or to stop the most recent session:
 
 1. When `launch_dev_extension` is called:
    - A unique session ID is generated
-   - A `.PROMPT` file is written to the launch directory with the prompt and session ID
+   - A `.kilocode/launchPrompt.md` file is written to the launch directory with the prompt and session ID
    - VSCode is launched with the extension in development mode using the `--wait` flag
    - The `--wait` flag ensures the process stays alive until the window is closed
-   - The extension can read the `.PROMPT` file and execute the prompt
+   - The extension can read the `.kilocode/launchPrompt.md` file and execute the prompt
    - The tool call blocks and waits for the extension to complete
    - Session information is stored persistently to allow access from different processes
 
 2. When the extension completes its work:
    - It (or another client) calls `stop_dev_extension`
    - The VSCode process is terminated
-   - The `.PROMPT` file is preserved for debugging purposes
+   - The `.kilocode/launchPrompt.md` file is preserved for debugging purposes
    - Results are returned to both the `stop_dev_extension` caller and the waiting `launch_dev_extension` caller
 
 3. Cross-process session management:

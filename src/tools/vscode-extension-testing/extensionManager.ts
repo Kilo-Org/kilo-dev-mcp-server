@@ -177,6 +177,15 @@ export class ExtensionManager {
       fs.mkdirSync(dir, { recursive: true });
     }
 
+    // Create .kilocode directory if it doesn't exist
+    const kilocodeDir = path.join(dir, ".kilocode");
+    if (!fs.existsSync(kilocodeDir)) {
+      fs.mkdirSync(kilocodeDir, { recursive: true });
+      process.stderr.write(
+        `[ExtensionManager] Created .kilocode directory: ${kilocodeDir}\n`
+      );
+    }
+
     // Generate a unique session ID
     const sessionId = this.generateSessionId();
     const startTime = new Date();
@@ -185,7 +194,7 @@ export class ExtensionManager {
     );
 
     // Create prompt file with plain text instructions
-    const promptFilePath = path.join(dir, ".PROMPT");
+    const promptFilePath = path.join(dir, ".kilocode", "launchPrompt.md");
     process.stderr.write(
       `[ExtensionManager] Writing prompt file to: ${promptFilePath}\n`
     );
